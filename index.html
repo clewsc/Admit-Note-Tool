@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medical Admission Note</title>
+<style>
+  :root{
+    --ink:#16232b;
+    --ink-soft:#5a6b74;
+    --ink-faint:#8a979d;
+    --line:#dae1e4;
+    --line-soft:#eaeef0;
+    --page:#edf0f1;
+    --panel:#ffffff;
+    --accent:#0d6e63;
+    --accent-deep:#095049;
+    --accent-soft:#e4f0ee;
+    --accent-line:#bcd9d4;
+    --flag:#96550a;
+    --flag-soft:#fbf1e2;
+    --flag-line:#e6d3b4;
+    --danger:#8f2c2c;
+    --danger-soft:#fbf0f0;
+    --danger-line:#e0c4c4;
+    --hover:#e3e8ea;
+    --field:#fcfdfd;
+    --on-accent:#ffffff;
+    --mark-bg:rgba(190,133,40,0.15);
+    --mark-line:rgba(150,85,10,0.20);
+    --scrim:rgba(22,35,43,0.32);
+    --lift:0 12px 34px rgba(22,35,43,0.22);
+    --radius:3px;
+    color-scheme:light;
+    --sans:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --note-face:var(--sans);
+    --note-size:14.5px;
+  }
+
+  /* Dark hangs off an attribute rather than the media query directly, so the
+     Settings control can override it. A script in the head sets the attribute
+     from the operating system before anything paints. Nothing is stored, so
+     the choice lasts for the session and the tool starts from the machine's
+     setting every time. Values are the advice tool's dark palette. */
+  :root[data-theme="dark"]{
+    --ink:#e4ecef;
+    --ink-soft:#a5b4bb;
+    --ink-faint:#7a8991;
+    --line:#2d3b43;
+    --line-soft:#243138;
+    --page:#121a1f;
+    --panel:#1a242a;
+    --accent:#4fb3a5;
+    --accent-deep:#7fcdc1;
+    --accent-soft:#17332f;
+    --accent-line:#2f5a54;
+    --flag:#d8a765;
+    --flag-soft:#2f2618;
+    --flag-line:#4a3a20;
+    --danger:#e29393;
+    --danger-soft:#2e1d1d;
+    --danger-line:#5a3535;
+    --hover:#233037;
+    --field:#161f24;
+    --on-accent:#0b1917;
+    --mark-bg:rgba(216,167,101,0.16);
+    --mark-line:rgba(216,167,101,0.32);
+    --scrim:rgba(0,0,0,0.55);
+    --lift:0 12px 34px rgba(0,0,0,0.45);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font:15px/1.5 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ------------------------------------------------------------ masthead */
+  .masthead{
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    padding:18px 24px 14px;
+    display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;
+  }
+  .masthead h1{
+    margin:0;font-family:var(--sans);font-size:17px;font-weight:600;letter-spacing:-0.005em;
+  }
+  .masthead .rule{flex:1;height:1px;background:var(--line);min-width:20px;}
+  .masthead .link{
+    background:none;border:0;padding:0;margin:0 0 0 16px;
+    font:inherit;font-size:13px;color:var(--accent);
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+  }
+  .masthead .link:hover{color:var(--ink);}
+  .source{font-size:12.5px;color:var(--ink-faint);}
+  .masthead .link.warn{color:var(--flag);}
+  .masthead .link.warn:hover{color:var(--flag);}
+
+  .fault{
+    margin:24px;padding:20px 22px;max-width:640px;
+    border:1px solid var(--flag-line);background:var(--flag-soft);
+    border-radius:var(--radius);color:var(--ink);
+  }
+  .fault h2{margin:0 0 8px;font-size:15px;}
+  .fault p{margin:0 0 10px;font-size:14px;color:var(--ink-soft);}
+  .fault ul{margin:0 0 10px;padding-left:20px;}
+  .fault li{font-size:14px;color:var(--ink-soft);margin-bottom:5px;}
+  .fault code{font-family:var(--mono);font-size:13px;}
+  .hidden{display:none !important;}
+
+  /* -------------------------------------------------------------- layout */
+  /* One column by default; the sidebar adds the second when it is showing.
+     With it hidden the note is capped at a readable measure rather than
+     stretching the full width of a large monitor. */
+  .wrap{
+    display:grid;grid-template-columns:minmax(0,1fr);gap:20px;
+    padding:20px 24px 24px;max-width:1340px;margin:0 auto;align-items:start;
+  }
+  .side{display:none;}
+  .notepanel{max-width:1040px;margin:0 auto;width:100%;}
+
+  body.side-open .wrap{grid-template-columns:330px minmax(0,1fr);}
+  body.side-open .side{display:block;}
+  body.side-open .notepanel{max-width:none;margin:0;}
+
+  #scrim{display:none;}
+
+  /* Narrow enough that a second column would leave nowhere to write, so the
+     sidebar slides over the note instead of pushing it down the page. That
+     matters for anyone working beside a record system in a half-width
+     window: the note stays put and the tools come to it. */
+  @media (max-width:900px){
+    .wrap,body.side-open .wrap{grid-template-columns:minmax(0,1fr);}
+    body.side-open .notepanel{max-width:1040px;margin:0 auto;}
+    body.side-open .side{
+      position:fixed;top:0;left:0;bottom:0;z-index:30;
+      width:min(330px,86vw);padding:16px;overflow-y:auto;
+      background:var(--page);border-right:1px solid var(--line);box-shadow:var(--lift);
+    }
+    body.side-open #scrim{display:block;position:fixed;inset:0;z-index:29;background:var(--scrim);}
+  }
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);}
+  .panel + .panel{margin-top:16px;}
+  .panel > h2{
+    margin:0;padding:13px 16px 9px;
+    font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .panel .body{padding:0 16px 16px;}
+
+  /* ---------------------------------------------------------- form bits */
+  label.f{display:block;margin-bottom:12px;}
+  label.f span{
+    display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:5px;
+  }
+  input[type=text],input[type=password],select,textarea{
+    width:100%;font:inherit;font-size:14px;
+    color:var(--ink);background:var(--field);
+    border:1px solid var(--line);border-radius:var(--radius);padding:7px 10px;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  /* .btn is the filled action; .btn.ghost is the quiet one */
+  .btn{
+    font:inherit;font-size:13.5px;font-weight:600;
+    padding:9px 20px;border-radius:var(--radius);
+    background:var(--accent);border:1px solid var(--accent);color:var(--on-accent);
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--accent-deep);border-color:var(--accent-deep);}
+  .btn.ghost{
+    font-weight:400;padding:8px 14px;
+    background:var(--panel);border-color:var(--line);color:var(--ink-soft);
+  }
+  .btn.ghost:hover{background:var(--panel);border-color:var(--ink-faint);color:var(--ink);}
+  .btn.danger{background:var(--panel);border-color:var(--danger-line);color:var(--danger);font-weight:400;}
+  .btn.danger:hover{background:var(--danger-soft);border-color:var(--danger);}
+  .btn[disabled],.btn[disabled]:hover{
+    opacity:.45;cursor:default;background:var(--accent);border-color:var(--accent);
+  }
+  .btn.ghost[disabled],.btn.ghost[disabled]:hover{background:var(--panel);border-color:var(--line);}
+  .btn.small{font-size:12.5px;padding:6px 12px;}
+
+  /* ---------------------------------------------------------- order sets */
+  #osList{
+    max-height:178px;overflow-y:auto;
+    border:1px solid var(--line);border-radius:var(--radius);background:var(--field);
+  }
+  .oset{
+    display:flex;align-items:center;gap:9px;padding:7px 10px;
+    font-size:14px;line-height:1.35;cursor:pointer;
+  }
+  .oset:hover{background:var(--hover);}
+  .oset + .oset{border-top:1px solid var(--line-soft);}
+  .oset input{margin:0;flex:0 0 auto;accent-color:var(--accent);}
+  .oset .nm{flex:1 1 auto;min-width:0;}
+  .oset .ct{flex:0 0 auto;font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .oset.pinned{
+    position:sticky;top:0;z-index:1;
+    background:var(--accent-soft);font-weight:600;
+    border-bottom:1px solid var(--accent-line);
+  }
+  .oset.pinned:hover{background:var(--accent-soft);}
+  .oset.pinned + .oset{border-top:0;}
+  .empty{color:var(--ink-faint);font-size:13.5px;padding:9px 10px;}
+
+  /* -------------------------------------------------- scoring tool rows */
+  .optrow{display:flex;flex-wrap:wrap;gap:6px;}
+  /* the frailty scale is nine single digits — even columns rather than
+     letting each button size to its own padding */
+  .optrow.digits{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;}
+  .optrow.digits .opt{padding:6px 0;text-align:center;font-variant-numeric:tabular-nums;}
+  .opt{
+    font:inherit;font-size:13px;
+    background:var(--panel);color:var(--ink-soft);
+    border:1px solid var(--line);border-radius:var(--radius);padding:6px 11px;cursor:pointer;
+  }
+  .opt:hover:not([disabled]){border-color:var(--ink-faint);color:var(--ink);}
+  .opt.on{
+    background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600;
+  }
+  .opt[disabled]{opacity:.4;cursor:default;}
+
+  .score{
+    margin-top:12px;padding:8px 11px;border-radius:var(--radius);font-size:13.5px;
+    background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent-deep);
+  }
+  .score.none{background:var(--panel);border-color:var(--line);color:var(--ink-faint);}
+
+  /* ----------------------------------------------------------- the note */
+  .notehead{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:13px 16px 9px;
+  }
+  .notehead .cap{
+    font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .spacer{flex:1 1 20px;}
+
+  /* Two stacked layers. The backdrop underneath paints a tint behind every
+     [bracketed] span; the real textarea sits on top, transparent, and stays
+     an ordinary editable text box. Typography, padding and box model must
+     match exactly or the tints drift off the words. */
+  .editor{
+    position:relative;margin:0 16px;height:clamp(360px,60vh,880px);
+    border:1px solid var(--line);border-radius:var(--radius);background:var(--field);
+  }
+  .editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+
+  .editor .backdrop,
+  .editor textarea{
+    position:absolute;top:0;left:0;width:100%;height:100%;margin:0;
+    padding:20px 22px;border:0;border-radius:0;background:transparent;
+    font-family:var(--note-face);font-size:var(--note-size);line-height:1.6;letter-spacing:normal;
+    white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;text-align:left;
+    tab-size:8;-moz-tab-size:8;
+  }
+  .editor .backdrop{
+    overflow:hidden;color:transparent;pointer-events:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  .editor .backdrop mark{
+    color:transparent;background:var(--mark-bg);
+    box-shadow:0 0 0 1px var(--mark-line);border-radius:2px;
+  }
+  .editor textarea{color:var(--ink);caret-color:var(--accent);overflow-y:auto;resize:none;}
+  .editor textarea:focus{outline:none;box-shadow:none;border:0;}
+
+  .notefoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px 16px;}
+
+  /* the blanks tracker, borrowed wholesale from the advice tool */
+  .tally{
+    flex:none;display:inline-flex;align-items:center;gap:9px;
+    font:inherit;font-size:13px;padding:6px 12px 6px 11px;border-radius:100px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);cursor:default;
+  }
+  .tally .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex:none;}
+  .tally[data-state="pending"]{
+    border-color:var(--flag-line);background:var(--flag-soft);color:var(--flag);cursor:pointer;
+  }
+  .tally[data-state="pending"] .dot{background:var(--flag);}
+  .tally[data-state="pending"]:hover{border-color:var(--flag);}
+  .tally[data-state="clear"]{
+    border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent-deep);
+  }
+  .tally[data-state="clear"] .dot{background:var(--accent);}
+
+  .checkline{font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:7px;}
+  .checkline input{margin:0;accent-color:var(--accent);}
+  .flash{font-size:13px;color:var(--accent-deep);}
+
+  /* --------------------------------------------------------------- modal */
+  .modal{
+    position:fixed;inset:0;z-index:20;
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;background:var(--scrim);overflow:auto;
+  }
+  .modal.hidden{display:none;}
+  .sheet{
+    width:100%;max-width:460px;max-height:82vh;overflow-y:auto;
+    padding:22px 24px 18px;background:var(--panel);
+    border-radius:5px;box-shadow:var(--lift);
+  }
+  .sheet.wide{max-width:780px;}
+  .sheet h2{margin:0 0 12px;font-family:var(--sans);font-size:16px;font-weight:600;}
+  .sheet h3{
+    margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .sheet p{margin:0 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.5;}
+  .sheet ol,.sheet ul{margin:0 0 10px;padding-left:20px;}
+  .sheet li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin-bottom:6px;}
+  .sheet b,.sheet strong{color:var(--ink);font-weight:600;}
+  .sheet code{font-family:var(--mono);font-size:13px;background:var(--hover);padding:1px 4px;border-radius:3px;}
+  .sheet .meta{
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);
+    font-size:12.5px;color:var(--ink-faint);
+  }
+  .sheet-close{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap;}
+
+  kbd{
+    font-family:var(--mono);font-size:12px;padding:1px 5px;
+    border:1px solid var(--line);border-radius:3px;background:var(--hover);color:var(--ink);
+  }
+
+  .group{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .group.first{margin-top:0;padding-top:0;border-top:0;}
+  .group h3{margin:0 0 10px;}
+  .stack{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .stack .btn{width:100%;text-align:center;}
+
+  .seg{display:flex;gap:0;}
+  .seg button{
+    flex:1;font:inherit;font-size:13px;padding:7px 10px;
+    color:var(--ink-soft);background:var(--panel);
+    border:1px solid var(--line);border-right-width:0;cursor:pointer;
+  }
+  .seg button:first-child{border-radius:var(--radius) 0 0 var(--radius);}
+  .seg button:last-child{border-right-width:1px;border-radius:0 var(--radius) var(--radius) 0;}
+  .seg button:hover{color:var(--ink);background:var(--hover);}
+  .seg button[aria-pressed="true"]{
+    color:var(--accent-deep);background:var(--accent-soft);
+    border-color:var(--accent-line);font-weight:600;
+  }
+  .sheet .divider{height:1px;background:var(--line-soft);margin:18px 0 16px;}
+
+  .caution{
+    background:var(--flag-soft);border:1px solid var(--flag-line);border-left:3px solid var(--flag);
+    padding:11px 13px;border-radius:var(--radius);font-size:13.5px;color:var(--ink);margin:0 0 14px;
+  }
+
+  /* -------------------------------------------------------------- editor */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap;}
+  .tabs button{
+    font:inherit;font-size:13px;background:none;border:0;border-bottom:2px solid transparent;
+    padding:8px 12px;cursor:pointer;color:var(--ink-soft);
+  }
+  .tabs button:hover{color:var(--ink);}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+  .card{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-bottom:12px;background:var(--field);
+  }
+  .card .row2{margin-bottom:9px;}
+  textarea.lines{min-height:120px;font-size:13.5px;line-height:1.5;}
+  textarea.exlines{
+    min-height:220px;font-family:var(--mono);font-size:12.5px;line-height:1.5;
+    white-space:pre;overflow-x:auto;
+  }
+  textarea.skel{min-height:340px;font-size:13.5px;line-height:1.5;}
+  .hint{font-size:12px;color:var(--ink-faint);margin:5px 0 0;line-height:1.45;}
+  .hint.lead{margin:0 0 10px;}
+  .hint:empty{margin:0;}
+  /* Inside a sheet, ".sheet p" outranks ".hint" and would render these at 14px
+     with no gap above. Targets only the captions under a segmented control. */
+  .sheet .seg + .hint{
+    font-size:12px;color:var(--ink-faint);line-height:1.45;margin:10px 0 0;
+  }
+
+  @media (prefers-reduced-motion:no-preference){
+    .btn,.oset,.opt,.tally{transition:background .12s ease,color .12s ease,border-color .12s ease;}
+  }
+</style>
+<script>
+/* Runs before anything paints, so a dark machine never flashes white. */
+(function(){
+  try{
+    var m = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+    document.documentElement.setAttribute("data-theme", (m && m.matches) ? "dark" : "light");
+  }catch(e){
+    document.documentElement.setAttribute("data-theme", "light");
+  }
+})();
+</script>
+</head>
+<body>
+
+<header class="masthead">
+  <h1>Medical Admission Note</h1>
+  <span class="rule"></span>
+  <span>
+    <button class="link" type="button" id="toggleSide" aria-expanded="true" aria-controls="side">&#9776; Hide tools</button>
+    <button class="link warn hidden" type="button" id="issuesBtn">&#9888;&#65039; <span id="issuesCount"></span></button>
+    <button class="link" type="button" id="openSettings">&#9881;&#65038; Settings</button>
+  </span>
+  <span class="source" id="source">Loading content&hellip;</span>
+</header>
+
+<div class="fault hidden" id="fault">
+  <h2>The content file cannot be used</h2>
+  <div id="faultDetail"></div>
+  <p>Fix <code>ordersets.js</code>, save it, then reload this page.</p>
+</div>
+
+<div class="wrap" id="wrap">
+
+  <!-- ============================ sidebar ============================ -->
+  <div class="side" id="side">
+
+    <section class="panel">
+      <h2>Patient header</h2>
+      <div class="body">
+        <div class="row2">
+          <label class="f"><span>RMO</span><input type="text" id="hRMO"></label>
+          <label class="f"><span>SMO</span><input type="text" id="hSMO"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span>Age</span><input type="text" id="hAge" inputmode="numeric"></label>
+          <label class="f"><span>Sex</span>
+            <select id="hSex">
+              <option value="">&mdash;</option>
+              <option>male</option>
+              <option>female</option>
+              <option>X</option>
+            </select>
+          </label>
+        </div>
+        <label class="f"><span>Referred by</span><input type="text" id="hRef"></label>
+        <label class="f"><span>Presenting with</span><input type="text" id="hPres"></label>
+        <button class="btn small" type="button" id="applyHeader">Fill in header</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Order sets</h2>
+      <div class="body">
+        <label class="f"><span>Search</span><input type="text" id="osSearch" placeholder="Type to filter"></label>
+        <div id="osList"></div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn small" type="button" id="insertSets" disabled>Add to plan</button>
+          <button class="btn ghost small" type="button" id="clearSets">Clear selection</button>
+          <button class="btn ghost small" type="button" id="planReset">Reset plan</button>
+        </div>
+        <p class="hint" id="osHidden" style="color:var(--mark-ink);"></p>
+        <p class="hint">Type to filter, <kbd>Enter</kbd> to tick the top match. The figure
+          on the right is how many lines each adds; repeated lines are added once.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Examination templates</h2>
+      <div class="body">
+        <p class="hint lead">Inserted at the bottom of the examination section.</p>
+        <div class="optrow" id="examBtns"></div>
+        <div style="margin-top:10px;">
+          <button class="btn ghost small" type="button" id="examReset">Reset exam</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Clinical Frailty Scale</h2>
+      <div class="body">
+        <p class="hint lead" id="cfsGate"></p>
+        <div class="optrow digits" id="cfsBtns"></div>
+        <div class="score none" id="cfsScore">Not recorded</div>
+        <button class="btn ghost small" type="button" id="cfsClear" style="margin-top:10px;">Clear</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============================== note ============================== -->
+  <section class="panel notepanel">
+    <div class="notehead">
+      <span class="cap">Note</span>
+      <span class="spacer"></span>
+      <button class="btn ghost small" type="button" id="resetNote">Start again</button>
+    </div>
+
+    <div class="editor" id="editorBox">
+      <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+      <textarea id="note" spellcheck="true" aria-label="Admission note"></textarea>
+    </div>
+
+    <div class="notefoot">
+      <button class="tally" type="button" id="tally" data-state="clear"><span class="dot"></span><span id="tallyText">&mdash;</span></button>
+      <label class="checkline"><input type="checkbox" id="stripBlanks" checked> Remove unfilled [] when copying</label>
+      <span class="spacer"></span>
+      <span class="flash" id="flash"></span>
+      <button class="btn" type="button" id="copyNote">Copy note</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="scrim"></div>
+
+<!-- ============================== modal ============================== -->
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet" id="sheet">
+    <h2 id="sheetTitle"></h2>
+    <div id="sheetBody"></div>
+    <div class="sheet-close" id="sheetActions"></div>
+  </div>
+</div>
+
+<script src="ordersets.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var data = (typeof ADMISSION_DATA !== "undefined") ? ADMISSION_DATA : null;
+
+  var ta       = document.getElementById("note");
+  var backdrop = document.getElementById("backdrop");
+  var osList   = document.getElementById("osList");
+  var tally    = document.getElementById("tally");
+  var tallyText= document.getElementById("tallyText");
+  var flashEl  = document.getElementById("flash");
+  var modal    = document.getElementById("modal");
+  var sheetT   = document.getElementById("sheetTitle");
+  var sheetB   = document.getElementById("sheetBody");
+  var sheetA   = document.getElementById("sheetActions");
+
+  var editorUnlocked = false;
+  var flashTimer = null;
+
+  var issues = [];
+
+  /* ------------------------------------------------------- content checks
+
+     The Editor lets people change the content file, and a plausible-looking
+     edit can quietly stop something working — renaming the PLAN heading so
+     order sets have nowhere to go, or losing a bracket so a blank is never
+     detected. Errors stop the tool with an explanation; warnings let it run
+     and collect behind a marker in the masthead. */
+
+  function bracketProblem(line){
+    var open  = (line.match(/\[/g) || []).length;
+    var close = (line.match(/\]/g) || []).length;
+    if(open !== close) return "an unmatched bracket";
+    if(/\[[^\]\n]*\[/.test(line)) return "nested brackets, so the blank will not be detected";
+    return null;
+  }
+
+  /* how the de-duplication sees a line, versus how a human reads it */
+  function dedupKey(line){ return norm(line); }
+  function looseKey(line){ return String(line).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+  function headingPresent(lines, heading){
+    if(!heading) return false;
+    var h = norm(heading);
+    for(var i=0;i<lines.length;i++) if(norm(lines[i]).indexOf(h) === 0) return true;
+    return false;
+  }
+
+  function validate(d){
+    var errors = [], warnings = [], i, j;
+
+    if(!d || typeof d !== "object"){
+      errors.push("The file did not define ADMISSION_DATA. It is missing, or a comma or " +
+                  "quote mark is out of place and the browser could not read it.");
+      return { errors:errors, warnings:warnings };
+    }
+    if(!d.skeletonLines || !d.skeletonLines.length){
+      errors.push("skeletonLines is missing or empty, so there is no note to write.");
+      return { errors:errors, warnings:warnings };
+    }
+    if(!(d.skeletonLines instanceof Array)){
+      errors.push("skeletonLines is not a list of lines.");
+      return { errors:errors, warnings:warnings };
+    }
+
+    var c = d.config || {};
+    var skel = d.skeletonLines;
+
+    /* the note itself */
+    var blanks = 0;
+    for(i=0;i<skel.length;i++){
+      if(typeof skel[i] !== "string"){
+        warnings.push("Note layout line " + (i+1) + " is not text.");
+        continue;
+      }
+      var bp = bracketProblem(skel[i]);
+      if(bp) warnings.push('Note layout line ' + (i+1) + ' has ' + bp + ': "' + skel[i] + '"');
+      blanks += (skel[i].match(/\[[^\[\]\n]*\]/g) || []).length;
+    }
+    if(!blanks) warnings.push("The note layout has no [blanks] in it at all.");
+
+    /* the anchors everything else hangs off */
+    if(!c.planHeading){
+      warnings.push("config.planHeading is empty, so order sets cannot be added to the plan.");
+    }else if(!headingPresent(skel, c.planHeading)){
+      warnings.push('No line in the note starts with the plan heading "' + c.planHeading +
+                    '", so Add to plan will fail.');
+    }
+    if(c.planEndMarker && !headingPresent(skel, c.planEndMarker)){
+      warnings.push('config.planEndMarker is "' + c.planEndMarker + '" but no line starts with ' +
+                    "that, so the plan runs to the end of the note.");
+    }
+    if(!c.examHeading){
+      warnings.push("config.examHeading is empty, so examination templates cannot be inserted.");
+    }else if(!headingPresent(skel, c.examHeading)){
+      warnings.push('No line in the note starts with the examination heading "' + c.examHeading +
+                    '", so inserting an examination template will fail.');
+    }
+    if(c.examEndMarker && !headingPresent(skel, c.examEndMarker)){
+      warnings.push('config.examEndMarker is "' + c.examEndMarker + '" but no line starts with ' +
+                    "that, so the examination section runs to the end of the note.");
+    }
+
+    /* age gating */
+    var labels = c.ageGatedLabels || [];
+    for(i=0;i<labels.length;i++){
+      if(!headingPresent(skel, labels[i])){
+        warnings.push('Age-gated line "' + labels[i] + '" matches no line in the note, so the ' +
+                      "age threshold does nothing for it.");
+      }
+    }
+    var minAge = parseInt(c.gatedMinAge, 10);
+    if(labels.length && isNaN(minAge)){
+      warnings.push("config.gatedMinAge is not a number, so 65 is being used.");
+    }
+
+    /* odds and ends */
+    if(c.noteFont && c.noteFont !== "sans" && c.noteFont !== "serif" && c.noteFont !== "mono"){
+      warnings.push('config.noteFont is "' + c.noteFont + '", which is not sans, serif or mono. ' +
+                    "Sans is being used.");
+    }
+    if(!c.editorKey) warnings.push("config.editorKey is empty, so the Editor opens with a blank password.");
+    if(!c.lastUpdated) warnings.push("config.lastUpdated is empty, so nobody can tell how old the content is.");
+
+    /* examination templates */
+    var seenExam = {};
+    var exam = d.examTemplates || [];
+    for(i=0;i<exam.length;i++){
+      var t = exam[i], et = "Examination template " + (i+1) + (t && t.name ? ' ("' + t.name + '")' : "");
+      if(!t || typeof t !== "object"){ warnings.push(et + " is not a valid block."); continue; }
+      if(!t.name) warnings.push(et + " has no name, so its button will be blank.");
+      else if(seenExam[t.name]) warnings.push('Two examination templates are both named "' + t.name + '".');
+      else seenExam[t.name] = true;
+      if(!t.lines || !t.lines.length){ warnings.push(et + " has no lines, so it inserts nothing."); continue; }
+      for(j=0;j<t.lines.length;j++){
+        if(typeof t.lines[j] !== "string"){ warnings.push(et + ": line " + (j+1) + " is not text."); continue; }
+        var ep = bracketProblem(t.lines[j]);
+        if(ep) warnings.push(et + ": line " + (j+1) + " has " + ep + ".");
+      }
+    }
+
+    /* order sets */
+    var sets = d.orderSets || [];
+    if(!sets.length){
+      warnings.push("There are no order sets, so the list will be empty.");
+    }
+    var seenName = {}, lineOwners = {}, looseOwners = {};
+    for(i=0;i<sets.length;i++){
+      var st = sets[i], where = "Order set " + (i+1) + (st && st.name ? ' ("' + st.name + '")' : "");
+      if(!st || typeof st !== "object"){ warnings.push(where + " is not a valid block."); continue; }
+
+      if(!st.name) warnings.push(where + " has no name, so its row will be blank.");
+      else if(seenName[st.name]) warnings.push('Two order sets are both named "' + st.name + '".');
+      else seenName[st.name] = true;
+
+      if(!st.lines || !st.lines.length){ warnings.push(where + " has no lines, so it adds nothing."); continue; }
+
+      for(j=0;j<st.lines.length;j++){
+        var ln = st.lines[j];
+        if(typeof ln !== "string"){ warnings.push(where + ": line " + (j+1) + " is not text."); continue; }
+        var lp = bracketProblem(ln);
+        if(lp) warnings.push(where + ": line " + (j+1) + " has " + lp + ".");
+
+        var dk = dedupKey(ln), lk = looseKey(ln);
+        if(!lk) continue;
+        if(!lineOwners[dk]) lineOwners[dk] = [];
+        lineOwners[dk].push({ set:st.name, raw:ln });
+        if(!looseOwners[lk]) looseOwners[lk] = [];
+        looseOwners[lk].push({ set:st.name, raw:ln, dk:dk });
+      }
+    }
+
+    /* lines a reader would call the same but the tool will not merge */
+    var reported = {}, k, group, a, b;
+    for(k in looseOwners){
+      if(!looseOwners.hasOwnProperty(k)) continue;
+      group = looseOwners[k];
+      if(group.length < 2) continue;
+      for(a=0;a<group.length;a++){
+        for(b=a+1;b<group.length;b++){
+          if(group[a].set === group[b].set) continue;
+          if(group[a].dk === group[b].dk) continue;      /* these do merge */
+          var tag = [group[a].raw, group[b].raw].sort().join("|");
+          if(reported[tag]) continue;
+          reported[tag] = true;
+          warnings.push('"' + group[a].raw + '" in ' + group[a].set + ' and "' + group[b].raw +
+                        '" in ' + group[b].set + " differ only in punctuation, so both will " +
+                        "appear when the sets are combined.");
+        }
+      }
+    }
+
+    /* lines that do merge, but are written differently in each set */
+    for(k in lineOwners){
+      if(!lineOwners.hasOwnProperty(k)) continue;
+      group = lineOwners[k];
+      if(group.length < 2) continue;
+      var forms = {}, list = [];
+      for(a=0;a<group.length;a++){
+        if(!forms[group[a].raw]){ forms[group[a].raw] = true; list.push(group[a].raw); }
+      }
+      if(list.length > 1){
+        warnings.push("These are treated as the same line, so whichever set is added first " +
+                      "decides the wording that appears: " + list.join("  /  "));
+      }
+    }
+
+    return { errors:errors, warnings:warnings };
+  }
+
+  function showFault(errors){
+    document.getElementById("wrap").className = "wrap hidden";
+    document.getElementById("fault").className = "fault";
+    var html = "<ul>";
+    for(var i=0;i<errors.length;i++) html += "<li>" + esc(errors[i]) + "</li>";
+    document.getElementById("faultDetail").innerHTML = html + "</ul>";
+    document.getElementById("source").textContent = "Content file not usable";
+  }
+
+  function paintIssues(){
+    var btn = document.getElementById("issuesBtn");
+    btn.className = issues.length ? "link warn" : "link warn hidden";
+    if(issues.length){
+      document.getElementById("issuesCount").textContent =
+        issues.length === 1 ? "1 content issue" : issues.length + " content issues";
+    }
+  }
+
+  document.getElementById("issuesBtn").addEventListener("click", function(){
+    openSheet("Content file issues", PANELS.issues());
+  });
+
+  if(typeof ADMISSION_DATA === "undefined"){
+    showFault(["The file ordersets.js was not found, or the browser could not read it. " +
+               "It must sit in the same folder as this page."]);
+    return;
+  }
+
+  var checked = validate(data);
+  if(checked.errors.length){ showFault(checked.errors); return; }
+  issues = checked.warnings;
+
+  if(!data.examTemplates) data.examTemplates = [];
+
+  /* ---------------------------------------------------------------- utils */
+
+  function esc(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+                    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function escRe(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+  function norm(s){ return String(s).replace(/\s+/g," ").trim().toLowerCase(); }
+
+  function flash(msg){
+    flashEl.textContent = msg;
+    if(flashTimer) clearTimeout(flashTimer);
+    flashTimer = setTimeout(function(){ flashEl.textContent = ""; }, 2800);
+  }
+
+  function skeletonText(){ return data.skeletonLines.join("\n"); }
+
+  /* Read and write "Label ...: value" lines. Everything after the first colon
+     is treated as the value, whether or not it is still a [blank] — which is
+     what lets a score be changed after it has been set. */
+  function labelRe(label){
+    return new RegExp("^(\\s*" + escRe(label) + "[^\\n:]*:[ \\t]*)(.*)$", "m");
+  }
+  function readLabelled(label){
+    var m = ta.value.match(labelRe(label));
+    return m ? m[2] : null;
+  }
+  function writeLabelled(label, value){
+    var re = labelRe(label);
+    if(!re.test(ta.value)) return false;
+    ta.value = ta.value.replace(re, function(_, head){ return head + value; });
+    refresh();
+    return true;
+  }
+
+  /* ------------------------------------------------ blanks and highlight */
+
+  var BLANK = /\[[^\[\]\n]*\]/g;
+  var blankCount = 0;
+
+  /* Repaint the tint layer and recount, in a single pass over the text so the
+     highlighting and the counter can never disagree. */
+  function refresh(){
+    var text = ta.value;
+    var re = new RegExp(BLANK.source, "g");
+    var out = "", last = 0, m, n = 0;
+
+    while((m = re.exec(text))){
+      out += esc(text.slice(last, m.index)) +
+             '<mark data-i="' + n + '">' + esc(m[0]) + '</mark>';
+      last = m.index + m[0].length;
+      n++;
+    }
+    out += esc(text.slice(last));
+    if(/\n$/.test(text)) out += " ";   /* a trailing newline needs something to sit on */
+
+    backdrop.innerHTML = out;
+    backdrop.style.width = ta.clientWidth + "px";   /* leave the scrollbar gutter alone */
+    backdrop.scrollTop = ta.scrollTop;
+
+    blankCount = n;
+    if(n === 0){
+      tallyText.textContent = "No blanks left";
+      tally.setAttribute("data-state", "clear");
+    }else{
+      tallyText.textContent = n + (n === 1 ? " blank left" : " blanks left") + " \u2014 Tab to next";
+      tally.setAttribute("data-state", "pending");
+    }
+    syncCFS();
+  }
+
+  function blankAt(text, pos){
+    var re = new RegExp(BLANK.source, "g"), m;
+    while((m = re.exec(text))){
+      if(pos >= m.index && pos <= m.index + m[0].length){
+        return { start:m.index, end:m.index + m[0].length };
+      }
+    }
+    return null;
+  }
+
+  /* Scroll using the painted position of the mark rather than an estimate. */
+  function select(a, b, markIndex){
+    ta.focus();
+    ta.setSelectionRange(a, b);
+    if(typeof markIndex === "number"){
+      var el = backdrop.querySelector('mark[data-i="' + markIndex + '"]');
+      if(el){
+        var target = el.offsetTop - (ta.clientHeight / 2);
+        ta.scrollTop = target > 0 ? target : 0;
+      }
+    }
+    backdrop.scrollTop = ta.scrollTop;
+  }
+
+  /* Walk the blanks in either direction, wrapping at both ends. Mirrors the
+     advice-to-patient tool so the two behave the same under the fingers. */
+  function jumpTo(dir){
+    var text = ta.value;
+    var re = new RegExp(BLANK.source, "g"), m, spots = [];
+    while((m = re.exec(text))) spots.push({ start:m.index, end:m.index + m[0].length });
+    if(!spots.length) return;
+
+    var nth, i;
+    if(dir < 0){
+      nth = spots.length - 1;                       /* wrap to the last */
+      for(i=spots.length-1;i>=0;i--){
+        if(spots[i].end < ta.selectionStart){ nth = i; break; }
+      }
+    }else{
+      nth = 0;                                      /* wrap to the first */
+      for(i=0;i<spots.length;i++){
+        if(spots[i].start >= ta.selectionEnd){ nth = i; break; }
+      }
+    }
+    select(spots[nth].start, spots[nth].end, nth);
+  }
+
+  ta.addEventListener("click", function(){
+    var t = blankAt(ta.value, ta.selectionStart);
+    if(t && ta.selectionStart === ta.selectionEnd) select(t.start, t.end);
+  });
+
+  /* Tab moves between blanks while there are any left to fill; once the note
+     is complete it goes back to moving focus out, so the interception only
+     exists while it is earning its keep. Escape is always a way out. */
+  ta.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      e.preventDefault();
+      document.getElementById("copyNote").focus();
+      return;
+    }
+    var isTab = e.key === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey;
+    var isCtrlEnter = e.key === "Enter" && (e.ctrlKey || e.metaKey);
+    if(!isTab && !isCtrlEnter) return;
+    if(blankCount === 0) return;
+    e.preventDefault();
+    jumpTo(e.shiftKey ? -1 : 1);
+  });
+  ta.addEventListener("input", refresh);
+  ta.addEventListener("scroll", function(){
+    backdrop.scrollTop = ta.scrollTop;
+    backdrop.scrollLeft = ta.scrollLeft;
+  });
+  window.addEventListener("resize", refresh);
+  tally.addEventListener("click", function(){ if(blankCount) jumpTo(1); });
+
+  /* ------------------------------------------------- patient header fill */
+
+  function fillAfterLabel(text, label, value){
+    if(!value) return text;
+    var re = new RegExp("(^\\s*" + escRe(label) + "\\s*)\\[[^\\[\\]\\n]*\\]", "m");
+    return re.test(text) ? text.replace(re, "$1" + value) : text;
+  }
+
+  document.getElementById("applyHeader").addEventListener("click", function(){
+    var t    = ta.value;
+    var age  = document.getElementById("hAge").value.trim();
+    var sex  = document.getElementById("hSex").value;
+    var ref  = document.getElementById("hRef").value.trim();
+    var pres = document.getElementById("hPres").value.trim();
+
+    t = fillAfterLabel(t, "RMO:", document.getElementById("hRMO").value.trim());
+    t = fillAfterLabel(t, "SMO:", document.getElementById("hSMO").value.trim());
+
+    if(age) t = t.replace(/\[XX\](?=-year-old)/, age);
+    if(sex) t = t.replace(/\[male\/female\]/, sex);
+    if(ref) t = t.replace(/(referred by\s*)\[[^\[\]\n]*\]/, "$1" + ref);
+
+    /* the presenting complaint is the last blank on the opening line, so work
+       on that line alone rather than letting a match wander down the note */
+    if(pres){
+      var ln = t.split("\n");
+      for(var i=0;i<ln.length;i++){
+        if(ln[i].indexOf("-year-old") === -1) continue;
+        var open = ln[i].lastIndexOf("[");
+        var shut = ln[i].indexOf("]", open);
+        if(open !== -1 && shut !== -1) ln[i] = ln[i].slice(0,open) + pres + ln[i].slice(shut+1);
+        break;
+      }
+      t = ln.join("\n");
+    }
+
+    ta.value = t;
+    refresh();
+    applyAgeGating();
+    flash("Header filled in.");
+  });
+
+  /* ---------------------------------------------------------- order sets */
+
+  /* Which sets are ticked is held here rather than read off the checkboxes,
+     because the list is rebuilt on every keystroke in the search box and the
+     DOM state would be wiped each time. Ticks therefore survive filtering:
+     search "pneu", tick it, search "aki", tick it, and both go in. */
+  var selected = {};
+
+  function byDisplay(a, b){
+    var pa = a.set.pin ? 0 : 1, pb = b.set.pin ? 0 : 1;
+    if(pa !== pb) return pa - pb;
+    var na = a.set.name.toLowerCase(), nb = b.set.name.toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  }
+
+  /* Sets matching the search box, in the order they are shown. */
+  function visibleSets(){
+    var filter = norm(document.getElementById("osSearch").value);
+    var hits = [], i;
+    for(i=0;i<data.orderSets.length;i++){
+      var s = data.orderSets[i];
+      if(filter && norm(s.name + " " + (s.aliases||"")).indexOf(filter) === -1) continue;
+      hits.push({ set:s, idx:i });
+    }
+    return hits.sort(byDisplay);
+  }
+
+  function renderOrderSets(){
+    var hits = visibleSets(), i;
+
+    if(!hits.length){
+      osList.innerHTML = '<p class="empty">Nothing matches that search.</p>';
+      refreshInsertBtn();
+      return;
+    }
+
+    var html = "";
+    for(i=0;i<hits.length;i++){
+      var s2 = hits[i].set;
+      html += '<label class="oset' + (s2.pin ? ' pinned' : '') + '">' +
+        '<input type="checkbox" class="osCheck" value="' + hits[i].idx + '"' +
+          (selected[hits[i].idx] ? ' checked' : '') + '>' +
+        '<span class="nm">' + esc(s2.name) + '</span>' +
+        '<span class="ct">' + s2.lines.length + '</span>' +
+        '</label>';
+    }
+    osList.innerHTML = html;
+
+    var boxes = osList.querySelectorAll(".osCheck");
+    for(i=0;i<boxes.length;i++){
+      boxes[i].addEventListener("change", function(){
+        var k = parseInt(this.value, 10);
+        if(this.checked) selected[k] = true; else delete selected[k];
+        refreshInsertBtn();
+      });
+    }
+    refreshInsertBtn();
+  }
+
+  /* Ticked sets, ordered as the list shows them, so Core's lines lead. */
+  function checkedIdx(){
+    var out = [], k;
+    for(k in selected){
+      if(selected.hasOwnProperty(k)) out.push({ set:data.orderSets[k], idx:parseInt(k,10) });
+    }
+    return out.sort(byDisplay).map(function(h){ return h.idx; });
+  }
+
+  function refreshInsertBtn(){
+    var picks = checkedIdx(), n = picks.length;
+    var b = document.getElementById("insertSets");
+    b.disabled = (n === 0);
+    b.textContent = n > 1 ? ("Add " + n + " sets to plan") : "Add to plan";
+
+    /* say so when a tick is scrolled out of sight behind the filter */
+    var shown = {}, vis = visibleSets(), i;
+    for(i=0;i<vis.length;i++) shown[vis[i].idx] = true;
+    var hidden = 0;
+    for(i=0;i<picks.length;i++) if(!shown[picks[i]]) hidden++;
+    var hint = document.getElementById("osHidden");
+    hint.textContent = hidden ? (hidden + (hidden===1 ? " ticked set is" : " ticked sets are") +
+                                 " hidden by the search") : "";
+  }
+
+  var osSearch = document.getElementById("osSearch");
+  osSearch.addEventListener("input", renderOrderSets);
+
+  /* Enter ticks the top match and clears the box, so several sets can be
+     chosen without reaching for the mouse: "pneu" Enter, "aki" Enter. */
+  osSearch.addEventListener("keydown", function(e){
+    if(e.key !== "Enter") return;
+    e.preventDefault();
+    var hits = visibleSets();
+    if(!hits.length){ flash("Nothing matches that search."); return; }
+    var top = hits[0];
+    if(selected[top.idx]){
+      flash(top.set.name + " was already ticked.");
+    }else{
+      selected[top.idx] = true;
+      flash(top.set.name + " ticked.");
+    }
+    this.value = "";
+    renderOrderSets();
+    this.focus();
+  });
+
+  document.getElementById("clearSets").addEventListener("click", function(){
+    selected = {};
+    renderOrderSets();
+  });
+
+  /* Find the block of lines between two headings. */
+  function region(lines, headRaw, tailRaw){
+    var head = norm(headRaw || ""), tail = norm(tailRaw || ""), start = -1, i;
+    if(!head) return null;
+    for(i=0;i<lines.length;i++){
+      if(norm(lines[i]).indexOf(head) === 0){ start = i; break; }
+    }
+    if(start === -1) return null;
+    var end = lines.length;
+    if(tail){
+      for(i=start+1;i<lines.length;i++){
+        if(norm(lines[i]).indexOf(tail) === 0){ end = i; break; }
+      }
+    }
+    return { start:start, end:end };
+  }
+
+  /* Insert below whatever is already in the region, keeping trailing spacing. */
+  function insertInRegion(lines, reg, block){
+    var at = reg.end;
+    while(at - 1 > reg.start && !lines[at-1].trim()) at--;
+    Array.prototype.splice.apply(lines, [at, 0].concat(block));
+    return lines;
+  }
+
+  document.getElementById("insertSets").addEventListener("click", function(){
+    var picks = checkedIdx();
+    if(!picks.length) return;
+
+    var lines = ta.value.split("\n");
+    var reg = region(lines, data.config.planHeading, data.config.planEndMarker);
+    if(!reg){
+      flash("No " + (data.config.planHeading || "PLAN:") + " heading found.");
+      return;
+    }
+
+    var seen = {}, i, k;
+    for(i=reg.start+1;i<reg.end;i++){
+      if(lines[i].trim()) seen[norm(lines[i])] = true;
+    }
+
+    /* if the plan holds nothing but an empty blank, use that space */
+    var onlyBlank = -1, content = 0;
+    for(i=reg.start+1;i<reg.end;i++){
+      if(!lines[i].trim()) continue;
+      content++;
+      if(lines[i].trim() === "[]") onlyBlank = i;
+    }
+    if(content === 1 && onlyBlank !== -1){
+      lines.splice(onlyBlank, 1);
+      reg.end--;
+      seen = {};
+    }
+
+    var add = [], added = 0, skipped = 0;
+    for(i=0;i<picks.length;i++){
+      var s = data.orderSets[picks[i]], block = [];
+      for(k=0;k<s.lines.length;k++){
+        var key = norm(s.lines[k]);
+        if(!key) continue;
+        if(seen[key]){ skipped++; continue; }
+        seen[key] = true;
+        block.push(s.lines[k]);
+        added++;
+      }
+      if(!block.length) continue;
+      if(data.config.labelOrderSets) add.push("\u2014 " + s.name + " \u2014");
+      add = add.concat(block);
+    }
+
+    if(!add.length){ flash("Already in the plan \u2014 nothing added."); return; }
+
+    ta.value = insertInRegion(lines, reg, add).join("\n");
+    refresh();
+    document.getElementById("clearSets").click();
+    flash(added + (added===1?" line added":" lines added") +
+          (skipped ? ", " + skipped + " already there" : "") + ".");
+  });
+
+  /* ------------------------------------------------- examination templates */
+
+  function renderExamButtons(){
+    var host = document.getElementById("examBtns"), html = "";
+    if(!data.examTemplates.length){
+      host.innerHTML = '<p class="empty">No examination templates.</p>';
+      return;
+    }
+    for(var i=0;i<data.examTemplates.length;i++){
+      html += '<button class="opt" type="button" data-exam="' + i + '">' +
+              esc(data.examTemplates[i].name) + '</button>';
+    }
+    host.innerHTML = html;
+  }
+
+  document.getElementById("examBtns").addEventListener("click", function(e){
+    var b = e.target;
+    while(b && b !== this && !b.getAttribute("data-exam")) b = b.parentNode;
+    if(!b || b === this) return;
+
+    var tpl = data.examTemplates[parseInt(b.getAttribute("data-exam"),10)];
+    if(!tpl) return;
+
+    var lines = ta.value.split("\n");
+    var reg = region(lines, data.config.examHeading, data.config.examEndMarker);
+    if(!reg){
+      flash("No " + (data.config.examHeading || "O/E:") + " heading found.");
+      return;
+    }
+
+    /* a 30-line block inserted twice by accident is a nuisance to unpick */
+    var marker = "";
+    for(var i=0;i<tpl.lines.length;i++){ if(tpl.lines[i].trim()){ marker = norm(tpl.lines[i]); break; } }
+    if(marker){
+      for(i=reg.start+1;i<reg.end;i++){
+        if(norm(lines[i]) === marker){
+          if(!confirm("That examination template is already in the note. Add it again?")) return;
+          break;
+        }
+      }
+    }
+
+    var block = [""].concat(tpl.lines);
+    ta.value = insertInRegion(lines, reg, block).join("\n");
+    refresh();
+    flash(tpl.name + " added to the examination.");
+  });
+
+  /* Put a section back to its blank template, leaving the rest of the note
+     alone. Both regions are read the same way, so headings and the spacing
+     around them survive intact. */
+  function resetSection(head, tail, label, warning){
+    var lines = ta.value.split("\n");
+    var reg = region(lines, head, tail);
+
+    var skel = data.skeletonLines.slice();
+    var sreg = region(skel, head, tail);
+
+    if(!reg || !sreg){
+      flash("Could not find the " + label + ".");
+      return;
+    }
+    if(!confirm(warning)) return;
+
+    Array.prototype.splice.apply(lines,
+      [reg.start, reg.end - reg.start].concat(skel.slice(sreg.start, sreg.end)));
+
+    ta.value = lines.join("\n");
+    refresh();
+    flash(label.charAt(0).toUpperCase() + label.slice(1) + " reset.");
+  }
+
+  document.getElementById("examReset").addEventListener("click", function(){
+    resetSection(data.config.examHeading, data.config.examEndMarker, "examination section",
+      "Reset the examination section?\n\n" +
+      "Everything in it will be replaced with the blank template \u2014 any findings you have " +
+      "typed and any examination template you have added. The rest of the note is left alone.");
+  });
+
+  document.getElementById("planReset").addEventListener("click", function(){
+    resetSection(data.config.planHeading, data.config.planEndMarker, "plan",
+      "Reset the plan?\n\n" +
+      "Everything in it will be replaced with the blank template \u2014 every order set you have " +
+      "added and anything you have typed there, including goals of care. The rest of the note " +
+      "is left alone.");
+  });
+
+  /* ------------------------------------------------------------------ CFS */
+
+  var CFS = [
+    "1 Very fit","2 Fit","3 Managing well","4 Living with very mild frailty",
+    "5 Living with mild frailty","6 Living with moderate frailty",
+    "7 Living with severe frailty","8 Living with very severe frailty",
+    "9 Terminally ill"
+  ];
+  var CFS_LABEL = "Rockwood";
+
+  (function buildCFS(){
+    var host = document.getElementById("cfsBtns"), html = "";
+    for(var i=0;i<CFS.length;i++){
+      html += '<button class="opt" type="button" data-cfs="' + i + '" title="' +
+              esc(CFS[i]) + '">' + CFS[i].charAt(0) + '</button>';
+    }
+    host.innerHTML = html;
+
+    host.addEventListener("click", function(e){
+      var b = e.target;
+      while(b && b !== host && !b.getAttribute("data-cfs")) b = b.parentNode;
+      if(!b || b === host || b.disabled) return;
+      var val = CFS[parseInt(b.getAttribute("data-cfs"),10)];
+      if(writeLabelled(CFS_LABEL, val)) flash("Frailty scale set to " + val + ".");
+      else flash("No Rockwood line in the note.");
+    });
+  })();
+
+  document.getElementById("cfsClear").addEventListener("click", function(){
+    if(writeLabelled(CFS_LABEL, "[]")) flash("Frailty scale cleared.");
+  });
+
+  function ageEntered(){
+    var v = parseInt(document.getElementById("hAge").value.replace(/[^0-9]/g,""), 10);
+    return isNaN(v) ? null : v;
+  }
+
+  /* Age gate plus active-button state, both driven by what the note actually
+     says, so editing the line by hand keeps the panel honest. */
+  function syncCFS(){
+    var min  = gatedMinAge();
+    var age  = ageEntered();
+    var open = (age !== null && age >= min);
+
+    var gate = document.getElementById("cfsGate");
+    gate.textContent = open ? "" : (age === null)
+      ? "Enter the patient's age to use the frailty scale."
+      : "Not scored below age " + min + ".";
+
+    var btns = document.getElementById("cfsBtns").querySelectorAll("[data-cfs]");
+    var current = readLabelled(CFS_LABEL);
+    var digit = (current && /^\s*([1-9])\b/.test(current)) ? RegExp.$1 : null;
+
+    for(var i=0;i<btns.length;i++){
+      btns[i].disabled = !open;
+      btns[i].className = (digit && CFS[i].charAt(0) === digit) ? "opt on" : "opt";
+    }
+
+    /* while gated the caption already says why, so the readout would only
+       repeat it */
+    var out = document.getElementById("cfsScore");
+    out.style.display = open ? "" : "none";
+    if(digit){
+      out.textContent = CFS[parseInt(digit,10)-1];
+      out.className = "score";
+    }else{
+      out.textContent = "Not recorded";
+      out.className = "score none";
+    }
+    document.getElementById("cfsClear").disabled = !digit;
+  }
+
+  document.getElementById("hAge").addEventListener("input", syncCFS);
+  document.getElementById("hAge").addEventListener("change", applyAgeGating);
+  document.getElementById("hAge").addEventListener("blur", applyAgeGating);
+
+  /* --------------------------------------- showing and hiding gated lines
+
+     Below the threshold these lines are taken out of the note altogether
+     rather than left blank. Anything already filled in is held, so correcting
+     a mistyped age puts it back as it was.
+
+     Lines only move on change or blur, never on every keystroke: typing "78"
+     passes through "7", and acting then would throw away an entry the user
+     had already made.
+
+     Which lines are gated comes from config.ageGatedLabels, so adding another
+     is a content change rather than a code change. */
+
+  var gated = [];
+
+  function gatedMinAge(){
+    var v = parseInt(data.config.gatedMinAge, 10);
+    if(isNaN(v)) v = parseInt(data.config.cfsMinAge, 10);   /* older content files */
+    return isNaN(v) ? 65 : v;
+  }
+
+  function linePrefix(s){
+    var i = s.indexOf(":");
+    return norm(i > -1 ? s.slice(0, i + 1) : s);
+  }
+
+  /* Work out from the skeleton which lines each gated line normally sits
+     between, so a restored line goes back where the template puts it. */
+  function buildGated(){
+    var labels = data.config.ageGatedLabels;
+    if(!labels || !labels.length) labels = ["Rockwood"];
+    var out = [], i, j;
+
+    for(i=0;i<labels.length;i++){
+      var key = norm(labels[i]);
+      if(!key) continue;
+      var idx = -1;
+      for(j=0;j<data.skeletonLines.length;j++){
+        if(norm(data.skeletonLines[j]).indexOf(key) === 0){ idx = j; break; }
+      }
+      if(idx === -1) continue;                 /* named line not in the skeleton */
+      var prev = null, next = null;
+      for(j=idx-1;j>=0;j--) if(data.skeletonLines[j].trim()){ prev = data.skeletonLines[j]; break; }
+      for(j=idx+1;j<data.skeletonLines.length;j++) if(data.skeletonLines[j].trim()){ next = data.skeletonLines[j]; break; }
+      out.push({ key:key, line:data.skeletonLines[idx], prev:prev, next:next, cache:null });
+    }
+    return out;
+  }
+
+  function gatedLineIndex(lines, key){
+    for(var i=0;i<lines.length;i++){
+      if(norm(lines[i]).indexOf(key) === 0) return i;
+    }
+    return -1;
+  }
+
+  function applyAgeGating(){
+    if(!gated.length) return;
+    var min = gatedMinAge();
+    var age = ageEntered();
+    var wanted = (age === null || age >= min);   /* no age given, no assumption made */
+    var lines = ta.value.split("\n");
+    var changed = false, n, g, at, i, p, insertAt;
+
+    for(n=0;n<gated.length;n++){
+      g = gated[n];
+      at = gatedLineIndex(lines, g.key);
+
+      if(!wanted && at !== -1){
+        g.cache = lines[at];
+        lines.splice(at, 1);
+        changed = true;
+        continue;
+      }
+
+      if(wanted && at === -1){
+        insertAt = -1;
+        if(g.prev){
+          p = linePrefix(g.prev);
+          for(i=0;i<lines.length;i++) if(norm(lines[i]).indexOf(p) === 0){ insertAt = i + 1; break; }
+        }
+        if(insertAt === -1 && g.next){
+          p = linePrefix(g.next);
+          for(i=0;i<lines.length;i++) if(norm(lines[i]).indexOf(p) === 0){ insertAt = i; break; }
+        }
+        if(insertAt === -1) continue;   /* both neighbours gone — leave the note alone */
+        lines.splice(insertAt, 0, g.cache || g.line);
+        changed = true;
+      }
+    }
+
+    if(changed){
+      ta.value = lines.join("\n");
+      refresh();
+    }
+  }
+
+  /* ---------------------------------------------------- unsaved work guard
+
+     Nothing is stored anywhere, so a stray Cmd+W after fifteen minutes of
+     typing loses the lot. The note counts as safe only once it has been
+     copied out; the baseline moves forward on each successful copy. */
+
+  var savedText = "";
+  function markSaved(){ savedText = ta.value; }
+
+  window.addEventListener("beforeunload", function(e){
+    if(ta.value === savedText) return;
+    e.preventDefault();
+    e.returnValue = "";      /* the wording itself is the browser's, not ours */
+    return "";
+  });
+
+  /* ------------------------------------------------------------ copy etc */
+
+  document.getElementById("copyNote").addEventListener("click", function(){
+    var text = ta.value;
+    if(document.getElementById("stripBlanks").checked){
+      text = text.replace(/\[[ \t]*\]/g, "").replace(/[ \t]+$/gm, "");
+    }
+    copyText(text,
+      function(){ markSaved(); flash("Copied. Paste into the record."); },
+      function(){ flash("Copy blocked \u2014 select the note and copy manually."); });
+  });
+
+  document.getElementById("resetNote").addEventListener("click", function(){
+    if(!confirm("Clear the note and start again? Anything typed will be lost.")) return;
+    ta.value = skeletonText();
+    var ids = ["hRMO","hSMO","hAge","hRef","hPres"];
+    for(var i=0;i<ids.length;i++) document.getElementById(ids[i]).value = "";
+    document.getElementById("hSex").value = "";
+    for(var g=0;g<gated.length;g++) gated[g].cache = null;
+    selected = {};
+    renderOrderSets();
+    refresh();
+    markSaved();
+    flash("Fresh note.");
+  });
+
+  /* -------------------------------------------------------------- panels */
+
+  function openSheet(title, html, actionsHtml, backFn, wide){
+    document.getElementById("sheet").className = wide ? "sheet wide" : "sheet";
+    sheetT.textContent = title;
+    sheetB.innerHTML = html;
+    sheetA.innerHTML = (actionsHtml || "") +
+      (backFn ? '<button class="btn ghost" type="button" id="sheetBack">Back to settings</button>' : "") +
+      '<button class="btn ghost" type="button" id="sheetClose">Close</button>';
+    document.getElementById("sheetClose").addEventListener("click", closeSheet);
+    if(backFn) document.getElementById("sheetBack").addEventListener("click", backFn);
+    modal.className = "modal";
+  }
+  function closeSheet(){ modal.className = "modal hidden"; }
+
+  /* One clipboard path for the note and for the problem report. Reports
+     status through a callback because flash() sits behind the modal. */
+  function copyText(text, onDone, onFail){
+    function ok(){ if(onDone) onDone(); }
+    function fallback(){
+      var tmp = document.createElement("textarea");
+      tmp.value = text;
+      tmp.style.position = "fixed";
+      tmp.style.opacity = "0";
+      document.body.appendChild(tmp);
+      tmp.select();
+      var worked = false;
+      try{ worked = document.execCommand("copy"); }catch(err){ worked = false; }
+      document.body.removeChild(tmp);
+      if(worked) ok(); else if(onFail) onFail();
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(ok, fallback);
+    }else{ fallback(); }
+  }
+
+  modal.addEventListener("click", function(e){ if(e.target === modal) closeSheet(); });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && modal.className.indexOf("hidden") === -1) closeSheet();
+  });
+
+  var PANELS = {
+    about: function(){
+      return '<p>A drafting aid for the <b>' + esc(data.config.service) +
+        '</b> admission note. Fill the blanks, add the order sets that apply, ' +
+        'then copy the whole note into the electronic record.</p>' +
+        '<p>Everything runs inside this browser. Nothing is saved; ' +
+        'nothing is sent anywhere, and the tool works with no ' +
+        'internet connection. Light and dark follow whatever this computer is set to. Closing the tab ' +
+        'discards the note, so copy it out before you leave &mdash; the browser will warn ' +
+        'you if you try to leave with work that has not been copied.</p>' +
+        '<div class="meta">' + data.orderSets.length + ' order sets &middot; ' +
+        data.examTemplates.length + ' examination templates &middot; version ' +
+        esc(data.config.version) + ' &middot; content last updated ' +
+        esc(data.config.lastUpdated) + '</div>';
+    },
+    issues: function(){
+      var html = '<p>The tool is running, but these need attention in ' +
+        '<code>ordersets.js</code>. None of this is visible to patients.</p><ul>';
+      for(var i=0;i<issues.length;i++) html += '<li>' + esc(issues[i]) + '</li>';
+      return html + '</ul><div class="meta">Fix them in Settings &gt; Editor, or in ' +
+        'ordersets.js directly, then reload the page.</div>';
+    },
+    bug: function(){
+      return '<p>Contact me on my work email (Christopher.Clews) or track me down at work.</p>' +
+        '<p>Tweaks and improvement ideas welcome!</p>';
+    },
+    help: function(){
+      return '<ol>' +
+        '<li>Fill the <b>patient header</b> and press <b>Fill in header</b>. The age ' +
+        'you enter also decides which age-gated lines appear in the note.</li>' +
+        '<li>Anything tinted amber is a blank. Click one and the whole thing selects, ' +
+        'so whatever you type replaces it &mdash; brackets included, which is what makes ' +
+        'the tint disappear.</li>' +
+        '<li>Press <kbd>Tab</kbd> to jump straight to the next blank and <kbd>Shift</kbd>+' +
+        '<kbd>Tab</kbd> to go back, so a note can be filled without touching the mouse. ' +
+        'The counter under the note shows how many are left.</li>' +
+        '<li>Tick any number of <b>order sets</b> and press <b>Add to plan</b>. Typing in ' +
+        'the search box and pressing <kbd>Enter</kbd> ticks the top match, and ticks are ' +
+        'kept while you search for the next one. A line already present is not added twice.</li>' +
+        '<li>The <b>frailty scale</b> writes into its own line.</li>' +
+        '<li>Some lines only apply to older patients. Under the age threshold they are ' +
+        'dropped. Which lines these are is set in Editor &gt; Options.</li>' +
+        '<li><b>Examination templates</b> drop in at the bottom of the examination ' +
+        'section, below anything already there.</li>' +
+        '<li><b>Reset plan</b> and <b>Reset exam</b> put just that one section back to blank, ' +
+        'leaving the rest of the note as it is. <b>Start again</b> clears the lot.</li>' +
+        '<li>Press <b>Copy note</b> and paste into the record. Only the text is copied.</li>' +
+        '</ol>' +
+        '<div class="meta"><kbd>Tab</kbd> next blank &middot; <kbd>Shift</kbd>+<kbd>Tab</kbd> ' +
+        'previous &middot; <kbd>Esc</kbd> leave the note &middot; <kbd>Enter</kbd> in the ' +
+        'search box ticks the top order set</div>' +
+        '<h3>If a template looks misaligned</h3>' +
+        '<p>Templates that use dot leaders to line up columns only work in a fixed-width ' +
+        'face. Settings &gt; Note font, set to <b>mono</b>. Note that how it ' +
+        'looks once pasted depends in part on SCP, not just this tool.</p>' +
+        '<h3>Adding or changing content</h3>' +
+        '<p>Use <b>Editor</b> in the top bar, or edit <code>ordersets.js</code> in any ' +
+        'plain text editor. The Editor writes that same file for you.</p>';
+    }
+  };
+
+  /* ------------------------------------------------------- sidebar toggle
+
+     Open on a roomy window, closed on a narrow one, decided once at load.
+     Nothing is stored, so it starts from the window size every time.
+
+     Resizing never overrides a choice except in the one case where leaving it
+     alone would be worse than changing it: dragging a wide window narrow
+     while the sidebar is open would drop a drawer and a scrim over the note. */
+
+  var NARROW = 900;
+  var sideOpen = window.innerWidth > NARROW;
+  var wasWide = window.innerWidth > NARROW;
+
+  function applySidebar(){
+    document.body.className = sideOpen ? "side-open" : "";
+    var b = document.getElementById("toggleSide");
+    b.setAttribute("aria-expanded", sideOpen ? "true" : "false");
+    b.innerHTML = sideOpen ? "&#9776; Hide tools" : "&#9776; Show tools";
+    refresh();   /* the note changed width, so the tint layer must repaint */
+  }
+
+  document.getElementById("toggleSide").addEventListener("click", function(){
+    sideOpen = !sideOpen;
+    applySidebar();
+  });
+
+  document.getElementById("scrim").addEventListener("click", function(){
+    sideOpen = false;
+    applySidebar();
+  });
+
+  window.addEventListener("resize", function(){
+    var wide = window.innerWidth > NARROW;
+    if(wasWide && !wide && sideOpen){ sideOpen = false; applySidebar(); }
+    wasWide = wide;
+  });
+
+  /* ------------------------------------------------------------ settings
+
+     Both controls are session-only. The tool stores nothing, so theme starts
+     from the operating system and the note font from the content file every
+     time the page is opened. */
+
+  var themeMode = "system";
+  var darkQuery = (window.matchMedia) ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  function resolvedTheme(){
+    if(themeMode === "light" || themeMode === "dark") return themeMode;
+    return (darkQuery && darkQuery.matches) ? "dark" : "light";
+  }
+  function applyTheme(){
+    document.documentElement.setAttribute("data-theme", resolvedTheme());
+  }
+  if(darkQuery){
+    var onSystemChange = function(){ if(themeMode === "system") applyTheme(); };
+    if(darkQuery.addEventListener) darkQuery.addEventListener("change", onSystemChange);
+    else if(darkQuery.addListener) darkQuery.addListener(onSystemChange);
+  }
+
+  var noteFace = "sans";
+  function applyNoteFont(face){
+    noteFace = (face === "mono" || face === "serif") ? face : "sans";
+    document.documentElement.style.setProperty("--note-face",
+      noteFace === "mono" ? "var(--mono)" : noteFace === "serif" ? "var(--serif)" : "var(--sans)");
+    document.documentElement.style.setProperty("--note-size",
+      noteFace === "mono" ? "13.5px" : noteFace === "serif" ? "15.5px" : "14.5px");
+    refresh();   /* the tint layer has to be repainted at the new metrics */
+  }
+
+  function segHTML(name, options, current){
+    var h = '<div class="seg" data-seg="' + name + '">';
+    for(var i=0;i<options.length;i++){
+      h += '<button type="button" data-val="' + options[i][0] + '" aria-pressed="' +
+           (options[i][0] === current ? "true" : "false") + '">' + options[i][1] + '</button>';
+    }
+    return h + '</div>';
+  }
+
+  function openSettings(){
+    openSheet("Settings",
+      '<label class="f"><span>Appearance</span></label>' +
+      segHTML("theme", [["system","System"],["light","Light"],["dark","Dark"]], themeMode) +
+      '<p class="hint">System follows this computer. Nothing is remembered, so the tool ' +
+      'starts from the computer setting each time.</p>' +
+
+      '<label class="f" style="margin-top:16px;"><span>Note font</span></label>' +
+      segHTML("font", [["sans","Sans"],["serif","Serif"],["mono","Mono"]], noteFace) +
+      '<p class="hint">Mono is the one to use if a template lines up columns.</p>' +
+
+      '<div class="divider"></div>' +
+
+      '<div class="stack">' +
+        '<button class="btn ghost" type="button" data-open="about">&#8505;&#65039; About</button>' +
+        '<button class="btn ghost" type="button" data-open="help">&#10067; How to use this</button>' +
+        '<button class="btn ghost" type="button" data-open="editor">&#9998;&#65038; Editor</button>' +
+        '<button class="btn ghost" type="button" data-open="bug">&#128027; Report a bug</button>' +
+      '</div>');
+
+    var segs = sheetB.querySelectorAll(".seg");
+    for(var g=0;g<segs.length;g++){
+      segs[g].addEventListener("click", function(e){
+        var b = e.target;
+        while(b && b !== this && !b.getAttribute("data-val")) b = b.parentNode;
+        if(!b || b === this) return;
+        var which = this.getAttribute("data-seg"), val = b.getAttribute("data-val");
+
+        if(which === "theme"){ themeMode = val; applyTheme(); }
+        if(which === "font"){ applyNoteFont(val); }
+
+        var btns = this.querySelectorAll("[data-val]");
+        for(var i=0;i<btns.length;i++){
+          btns[i].setAttribute("aria-pressed", btns[i] === b ? "true" : "false");
+        }
+      });
+    }
+
+    var rows = sheetB.querySelectorAll("[data-open]");
+    for(var i=0;i<rows.length;i++){
+      rows[i].addEventListener("click", function(){
+        var k = this.getAttribute("data-open");
+        if(k === "about")  openSheet("About", PANELS.about(), "", openSettings);
+        if(k === "help")   openSheet("How to use this", PANELS.help(), "", openSettings);
+        if(k === "editor") openEditorGate();
+        if(k === "bug")    openSheet("Report a bug", PANELS.bug(), "", openSettings);
+      });
+    }
+  }
+
+  document.getElementById("openSettings").addEventListener("click", openSettings);
+
+  /* -------------------------------------------------------------- editor */
+
+  function openEditorGate(){
+    if(editorUnlocked){ openEditor(); return; }
+    openSheet("Editor sign-in",
+      '<div class="caution"><b>Worth knowing before you rely on this.</b> The password ' +
+      'sits in plain text inside <code>ordersets.js</code>. It stops content being ' +
+      'changed by accident; it will not stop anyone who looks in the file. Treat the ' +
+      'shared drive permissions as the real control.</div>' +
+      '<label class="f"><span>Password</span><input type="password" id="edPass"></label>' +
+      '<p class="hint" id="edErr"></p>',
+      '<button class="btn" type="button" id="edGo">Sign in</button>',
+      openSettings);
+
+    var go = document.getElementById("edGo");
+    var pass = document.getElementById("edPass");
+    function attempt(){
+      if(pass.value === (data.config.editorKey || "")){
+        editorUnlocked = true;
+        openEditor();
+      }else{
+        document.getElementById("edErr").textContent = "That password does not match. Try again.";
+        pass.value = "";
+        pass.focus();
+      }
+    }
+    go.addEventListener("click", attempt);
+    pass.addEventListener("keydown", function(e){ if(e.key === "Enter") attempt(); });
+    pass.focus();
+  }
+
+  var edTab = "sets";
+
+  function openEditor(){
+    openSheet("Editor", editorHTML(),
+      '<button class="btn" type="button" id="edSave">Save in this session</button>' +
+      '<button class="btn ghost" type="button" id="edDownload">Download ordersets.js</button>',
+      openSettings, true);
+    wireEditor();
+  }
+
+  function editorHTML(){
+    var h = '<div class="tabs">' +
+      '<button type="button" data-tab="sets"' + (edTab==="sets"?' class="on"':'') + '>Order sets</button>' +
+      '<button type="button" data-tab="exam"' + (edTab==="exam"?' class="on"':'') + '>Examination</button>' +
+      '<button type="button" data-tab="skel"' + (edTab==="skel"?' class="on"':'') + '>Note layout</button>' +
+      '<button type="button" data-tab="cfg"'  + (edTab==="cfg" ?' class="on"':'') + '>Options</button>' +
+      '</div>';
+    var i, s;
+
+    if(edTab === "sets"){
+      h += '<p class="hint" style="margin-bottom:12px;">One line of the plan per line of text. ' +
+           'Wording repeated across sets must match exactly for the de-duplication to catch it.</p>';
+      for(i=0;i<data.orderSets.length;i++){
+        s = data.orderSets[i];
+        h += '<div class="card" data-set="' + i + '">' +
+          '<div class="row2">' +
+            '<label class="f"><span>Name</span><input type="text" class="edName" value="' + esc(s.name) + '"></label>' +
+            '<label class="f"><span>Search terms</span><input type="text" class="edAlias" value="' + esc(s.aliases||"") + '"></label>' +
+          '</div>' +
+          '<label class="checkline" style="margin-bottom:9px;"><input type="checkbox" class="edPin"' +
+            (s.pin ? ' checked' : '') + '> Hold at the top of the list</label>' +
+          '<label class="f"><span>Plan lines</span><textarea class="lines edLines">' + esc(s.lines.join("\n")) + '</textarea></label>' +
+          '<button class="btn danger small" type="button" data-del="' + i + '">Delete this set</button>' +
+          '</div>';
+      }
+      h += '<button class="btn ghost" type="button" id="edAdd">Add an order set</button>';
+    }
+
+    if(edTab === "exam"){
+      h += '<p class="hint" style="margin-bottom:12px;">Spacing is reproduced exactly, so ' +
+           'templates that line up columns need the note font set to mono. This box is ' +
+           'fixed-width and does not wrap, so what you see is what gets inserted.</p>';
+      for(i=0;i<data.examTemplates.length;i++){
+        s = data.examTemplates[i];
+        h += '<div class="card" data-exset="' + i + '">' +
+          '<label class="f"><span>Name</span><input type="text" class="exName" value="' + esc(s.name) + '"></label>' +
+          '<label class="f"><span>Template</span><textarea class="exlines exLines" spellcheck="false">' +
+            esc(s.lines.join("\n")) + '</textarea></label>' +
+          '<button class="btn danger small" type="button" data-exdel="' + i + '">Delete this template</button>' +
+          '</div>';
+      }
+      h += '<button class="btn ghost" type="button" id="exAdd">Add an examination template</button>';
+    }
+
+    if(edTab === "skel"){
+      h += '<p class="hint" style="margin-bottom:12px;">The note as it appears when the tool opens. ' +
+           'Anything in [square brackets] becomes a tinted blank.</p>' +
+           '<textarea class="skel" id="edSkel">' + esc(skeletonText()) + '</textarea>';
+    }
+
+    if(edTab === "cfg"){
+      var c = data.config;
+      h += '<div class="row2">' +
+        '<label class="f"><span>Service</span><input type="text" id="cfgService" value="' + esc(c.service||"") + '"></label>' +
+        '<label class="f"><span>Version</span><input type="text" id="cfgVersion" value="' + esc(c.version||"") + '"></label>' +
+        '</div><div class="row2">' +
+        '<label class="f"><span>Content last updated</span><input type="text" id="cfgUpdated" value="' + esc(c.lastUpdated||"") + '"></label>' +
+        '<label class="f"><span>Editor password</span><input type="text" id="cfgKey" value="' + esc(c.editorKey||"") + '"></label>' +
+        '</div><div class="row2">' +
+        '<label class="f"><span>Default note font</span><select id="cfgFont">' +
+          '<option value="sans"'  + (c.noteFont!=="mono"&&c.noteFont!=="serif"?' selected':'') + '>sans — matches the interface</option>' +
+          '<option value="serif"' + (c.noteFont==="serif"?' selected':'') + '>serif</option>' +
+          '<option value="mono"'  + (c.noteFont==="mono"?' selected':'')  + '>mono — columns line up</option>' +
+        '</select></label>' +
+        '<label class="f"><span>Age-gated lines from age</span><input type="text" id="cfgAge" value="' + esc(gatedMinAge()) + '"></label>' +
+        '</div>' +
+        '<label class="f"><span>Lines only shown at or above that age</span>' +
+          '<input type="text" id="cfgGated" value="' + esc((c.ageGatedLabels||[]).join(", ")) + '"></label>' +
+        '<p class="hint" style="margin:-4px 0 12px;">Comma separated, matched against the ' +
+        'start of the line &mdash; &ldquo;Rockwood&rdquo; catches &ldquo;Rockwood CFS: []&rdquo;. ' +
+        'Below the age these lines are removed from the note rather than left blank.</p>' +
+        '<div class="row2">' +
+        '<label class="f"><span>Plan heading</span><input type="text" id="cfgHead" value="' + esc(c.planHeading||"") + '"></label>' +
+        '<label class="f"><span>Line that ends the plan</span><input type="text" id="cfgTail" value="' + esc(c.planEndMarker||"") + '"></label>' +
+        '</div>' +
+        '<p class="hint" style="margin:-4px 0 12px;">Leave the two &ldquo;ends the&rdquo; boxes ' +
+        'empty to run a section to the end of the note. The plan uses this, so order set ' +
+        'lines always land at the bottom of it.</p>' +
+        '<div class="row2">' +
+        '<label class="f"><span>Examination heading</span><input type="text" id="cfgExHead" value="' + esc(c.examHeading||"") + '"></label>' +
+        '<label class="f"><span>Line that ends the examination</span><input type="text" id="cfgExTail" value="' + esc(c.examEndMarker||"") + '"></label>' +
+        '</div>' +
+        '<label class="checkline" style="margin-top:6px;"><input type="checkbox" id="cfgLabel"' +
+        (c.labelOrderSets ? ' checked' : '') + '> Put a heading above each order set in the plan</label>';
+    }
+
+    return h;
+  }
+
+  function wireEditor(){
+    var i, els;
+
+    els = sheetB.querySelectorAll(".tabs button");
+    for(i=0;i<els.length;i++){
+      els[i].addEventListener("click", function(){
+        harvest();
+        edTab = this.getAttribute("data-tab");
+        sheetB.innerHTML = editorHTML();
+        wireEditor();
+      });
+    }
+
+    els = sheetB.querySelectorAll("[data-del]");
+    for(i=0;i<els.length;i++){
+      els[i].addEventListener("click", function(){
+        var idx = parseInt(this.getAttribute("data-del"),10);
+        if(!confirm("Delete \u201c" + data.orderSets[idx].name + "\u201d?")) return;
+        harvest();
+        data.orderSets.splice(idx,1);
+        sheetB.innerHTML = editorHTML(); wireEditor(); renderOrderSets();
+      });
+    }
+
+    els = sheetB.querySelectorAll("[data-exdel]");
+    for(i=0;i<els.length;i++){
+      els[i].addEventListener("click", function(){
+        var idx = parseInt(this.getAttribute("data-exdel"),10);
+        if(!confirm("Delete \u201c" + data.examTemplates[idx].name + "\u201d?")) return;
+        harvest();
+        data.examTemplates.splice(idx,1);
+        sheetB.innerHTML = editorHTML(); wireEditor(); renderExamButtons();
+      });
+    }
+
+    var add = document.getElementById("edAdd");
+    if(add) add.addEventListener("click", function(){
+      harvest();
+      data.orderSets.push({ name:"New order set", pin:false, aliases:"", lines:["[]"] });
+      sheetB.innerHTML = editorHTML(); wireEditor(); renderOrderSets();
+    });
+
+    var exAdd = document.getElementById("exAdd");
+    if(exAdd) exAdd.addEventListener("click", function(){
+      harvest();
+      data.examTemplates.push({ name:"New examination template", lines:["[]"] });
+      sheetB.innerHTML = editorHTML(); wireEditor(); renderExamButtons();
+    });
+
+    document.getElementById("edSave").onclick = function(){
+      harvest();
+      applyLoaded();
+      /* an edit can break things, but not badly enough to stop mid-note, so
+         anything found is shown as an issue rather than a fault */
+      var re = validate(data);
+      issues = re.errors.concat(re.warnings);
+      paintIssues();
+      flash(issues.length
+        ? ("Changes are live. " + issues.length + " content issue" +
+           (issues.length === 1 ? "" : "s") + " \u2014 see the warning in the top bar.")
+        : "Changes are live in this session. Download the file to keep them.");
+      closeSheet();
+    };
+    document.getElementById("edDownload").onclick = function(){ harvest(); downloadFile(); };
+  }
+
+  function harvest(){
+    var i, k, raw, out;
+
+    if(edTab === "sets"){
+      var cards = sheetB.querySelectorAll("[data-set]");
+      for(i=0;i<cards.length;i++){
+        var s = data.orderSets[parseInt(cards[i].getAttribute("data-set"),10)];
+        if(!s) continue;
+        s.name    = cards[i].querySelector(".edName").value.trim() || "Untitled";
+        s.aliases = cards[i].querySelector(".edAlias").value.trim();
+        s.pin     = cards[i].querySelector(".edPin").checked;
+        raw = cards[i].querySelector(".edLines").value.split("\n"); out = [];
+        for(k=0;k<raw.length;k++) if(raw[k].trim()) out.push(raw[k].replace(/\s+$/,""));
+        s.lines = out;
+      }
+    }
+
+    if(edTab === "exam"){
+      var ex = sheetB.querySelectorAll("[data-exset]");
+      for(i=0;i<ex.length;i++){
+        var t = data.examTemplates[parseInt(ex[i].getAttribute("data-exset"),10)];
+        if(!t) continue;
+        t.name = ex[i].querySelector(".exName").value.trim() || "Untitled";
+        /* blank lines are meaningful here, so keep them */
+        raw = ex[i].querySelector(".exLines").value.replace(/\r\n/g,"\n").split("\n");
+        while(raw.length && !raw[0].trim()) raw.shift();
+        while(raw.length && !raw[raw.length-1].trim()) raw.pop();
+        t.lines = raw;
+      }
+    }
+
+    if(edTab === "skel"){
+      var el = document.getElementById("edSkel");
+      if(el) data.skeletonLines = el.value.replace(/\r\n/g,"\n").split("\n");
+    }
+
+    if(edTab === "cfg"){
+      var c = data.config;
+      c.service        = document.getElementById("cfgService").value.trim();
+      c.version        = document.getElementById("cfgVersion").value.trim();
+      c.lastUpdated    = document.getElementById("cfgUpdated").value.trim();
+      c.editorKey      = document.getElementById("cfgKey").value;
+      c.noteFont       = document.getElementById("cfgFont").value;
+      var a = parseInt(document.getElementById("cfgAge").value.replace(/[^0-9]/g,""),10);
+      c.gatedMinAge    = isNaN(a) ? 65 : a;
+      delete c.cfsMinAge;
+      var raw = document.getElementById("cfgGated").value.split(","), labels = [];
+      for(var g=0;g<raw.length;g++){ var t = raw[g].replace(/^\s+|\s+$/g,""); if(t) labels.push(t); }
+      c.ageGatedLabels = labels;
+      c.planHeading    = document.getElementById("cfgHead").value.trim();
+      c.planEndMarker  = document.getElementById("cfgTail").value.trim();
+      c.examHeading    = document.getElementById("cfgExHead").value.trim();
+      c.examEndMarker  = document.getElementById("cfgExTail").value.trim();
+      c.labelOrderSets = document.getElementById("cfgLabel").checked;
+    }
+  }
+
+  function fileText(){
+    var stamp = new Date().toLocaleString("en-NZ");
+    return "/* ============================================================\n" +
+      "   ordersets.js  \u2014 content file for the Medical Admission Note tool\n" +
+      "   Written by the built-in Editor on " + stamp + "\n" +
+      "\n" +
+      "   Save this beside admission-note.html, replacing the old copy.\n" +
+      "   Hand editing is fine: every piece of text sits in \"double quotes\"\n" +
+      "   and every item except the last in a list ends with a comma.\n" +
+      "   ============================================================ */\n\n" +
+      "var ADMISSION_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+  }
+
+  function downloadFile(){
+    var text = fileText();
+    try{
+      var blob = new Blob([text], { type:"text/javascript;charset=utf-8" });
+      if(window.navigator && window.navigator.msSaveBlob){
+        window.navigator.msSaveBlob(blob, "ordersets.js"); return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "ordersets.js";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    }catch(err){
+      openSheet("Download blocked",
+        '<p>The browser would not save the file. Select everything below, copy it, ' +
+        'and paste it into <code>ordersets.js</code> in a plain text editor.</p>' +
+        '<textarea class="skel" id="edRaw"></textarea>');
+      document.getElementById("edRaw").value = text;
+      document.getElementById("edRaw").select();
+    }
+  }
+
+  /* ---------------------------------------------------------------- boot */
+
+  function applyLoaded(){
+    applyNoteFont(data.config.noteFont);
+    document.getElementById("source").textContent = "v" + (data.config.version || "");
+    gated = buildGated();
+    renderOrderSets();
+    renderExamButtons();
+    applyAgeGating();
+  }
+
+  ta.value = skeletonText();
+  applyLoaded();
+  applySidebar();
+  paintIssues();
+  markSaved();
+  document.getElementById("hRMO").focus();
+
+})();
+</script>
+</body>
+</html>
