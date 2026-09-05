@@ -11,7 +11,7 @@ var ADMISSION_DATA = {
   "config": {
     "service": "General Medicine",
     "version": "1.9 beta",
-    "lastUpdated": "11 August 2026",
+    "lastUpdated": "6 Sept 2026",
     "editorKey": "genmed",
     /* Face for the note: "sans" matches the interface, "serif" is softer for
        prose, "mono" is what you need if a template lines up columns. */
@@ -48,6 +48,8 @@ var ADMISSION_DATA = {
     "",
     "SOCIAL HISTORY:",
     "[]",
+    "[Rockwood]",
+    "[EPOA/ACP]",
     "",
     "O/E:",
     "Vitals: []",
