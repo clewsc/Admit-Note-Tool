@@ -10,7 +10,7 @@
 var ADMISSION_DATA = {
   "config": {
     "service": "General Medicine",
-    "version": "1.95 beta",
+    "version": "0.2 beta",
     "lastUpdated": "6th Sept 2026",
     "editorKey": "genmed",
     /* Face for the note: "sans" matches the interface, "serif" is softer for
